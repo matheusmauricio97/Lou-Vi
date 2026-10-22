@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PDV Doces</title>
+<style>
+:root{--bg:#fdf6f0;--card:#fff;--tx:#3b2a2a;--mut:#8a7570;--pri:#d6336c;--pri2:#fde4ee;--bd:#ead9d0;--ok:#2f9e44;--c1:#d6336c;--c2:#f08c00;--c3:#1c7ed6;--c4:#2f9e44;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1d1517;--card:#2a1f22;--tx:#f5e9e6;--mut:#b7a29d;--pri:#ff6b9d;--pri2:#43232e;--bd:#40302f;--ok:#51cf66}}
+:root[data-theme="dark"]{--bg:#1d1517;--card:#2a1f22;--tx:#f5e9e6;--mut:#b7a29d;--pri:#ff6b9d;--pri2:#43232e;--bd:#40302f;--ok:#51cf66}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px}
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--bd);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--card);z-index:10}
+h1{font-size:18px;margin:0}h2{font-size:17px;margin:0 0 10px}
+main{max-width:900px;margin:0 auto;padding:14px}
+nav{display:flex;gap:6px;overflow-x:auto;padding:10px 14px 0;max-width:900px;margin:0 auto}
+nav button{white-space:nowrap}
+button{font:inherit;border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:10px 14px;border-radius:10px;cursor:pointer}
+button.p,nav button.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+button.sm{padding:6px 10px;font-size:14px}
+input,select{font:inherit;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--tx);width:100%}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.prod{display:flex;flex-direction:column;gap:6px;text-align:left}
+.prod b{font-size:15px}.mut{color:var(--mut);font-size:14px}
+.qty{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.qty span{font-weight:700;min-width:22px;text-align:center}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row>*{flex:1}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+.kpi{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px}
+.kpi b{display:block;font-size:22px;color:var(--pri)}
+.bar{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:14px}
+.bar .l{width:38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .t{flex:1;background:var(--pri2);border-radius:6px;height:18px}
+.bar .t i{display:block;height:100%;background:var(--pri);border-radius:6px}
+.bar .v{min-width:44px;text-align:right;font-weight:600}
+.donut{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.ring{width:130px;height:130px;border-radius:50%;flex:none;position:relative}
+.ring::after{content:"";position:absolute;inset:26px;background:var(--card);border-radius:50%}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.hours{display:flex;align-items:flex-end;gap:4px;height:120px;overflow-x:auto}
+.hours div{flex:1;min-width:22px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:11px;color:var(--mut)}
+.hours i{display:block;width:100%;background:var(--pri);border-radius:4px 4px 0 0}
+.tot{font-size:22px;font-weight:700;color:var(--pri)}
+.pay{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.login{max-width:340px;margin:12vh auto;text-align:center}
+.err{color:#e03131;font-size:14px;min-height:18px}
+.tag{display:inline-block;font-size:12px;background:var(--pri2);color:var(--pri);padding:2px 8px;border-radius:99px}
+.items{margin:6px 0;padding-left:18px}
+.sticky{position:sticky;bottom:8px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const brl=n=>(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const METHODS={debito:['Débito','var(--c3)'],credito:['Crédito','var(--c2)'],dinheiro:['Dinheiro','var(--c4)']};
+let db=null,isAdminViewer=false,me=null,tab='',products=[],staff=[],orders=[],cart={},cname='',msg='',loginErr='',recv={};
+try{me=JSON.parse(localStorage.getItem('pdv_me')||'null')}catch(e){}
+
+async function boot(){
+  render();
+  db=makeDb();
+  if(!db){msg='Não foi possível conectar ao banco de dados. Confira a URL e a chave do Supabase no index.html.';render();return}
+  const sub=(name,set,after)=>db.collection(name).onSnapshot(s=>{set(s.docs.map(d=>({id:d.id,...d.data()})));after()},e=>{msg='Sem acesso aos dados ('+e.code+'). Verifique as políticas (RLS) e o SQL no Supabase.';render()});
+  sub('products',a=>products=a.sort((x,y)=>(x.name||'').localeCompare(y.name||'')),()=>render());
+  sub('staff',a=>staff=a,()=>render());
+  sub('orders',a=>orders=a,()=>{if(tab!=='vender')render()});
+  render();
+}
+function save(m){me=m;try{m?localStorage.setItem('pdv_me',JSON.stringify(m)):localStorage.removeItem('pdv_me')}catch(e){}}
+function tabsFor(){
+  if(me.admin)return[['painel','Painel'],['vender','Vender'],['caixa','Caixa'],['produtos','Produtos'],['equipe','Equipe']];
+  const t=[];if(me.role!=='caixa')t.push(['vender','Vender']);if(me.role!=='vendedor')t.push(['caixa','Caixa']);return t;
+}
+function render(){
+  const app=$('#app');
+  if(!me){app.innerHTML=loginView();return}
+  const tabs=tabsFor();if(!tabs.find(t=>t[0]===tab))tab=tabs[0][0];
+  app.innerHTML=`<header><h1>🍬 PDV Doces</h1><div class="row" style="flex:none"><span class="mut">${esc(me.name)}</span><button class="sm" onclick="logout()">Sair</button></div></header>
+  <nav>${tabs.map(t=>`<button class="${tab===t[0]?'on':''}" onclick="go('${t[0]}')">${t[1]}</button>`).join('')}</nav>
+  <main>${msg?`<div class="card err">${esc(msg)}</div>`:''}${{painel,vender,caixa,produtos,equipe}[tab]()}</main>`;
+}
+function go(t){tab=t;render()}
+function logout(){save(null);tab='';render()}
+function loginView(){
+  return`<div class="login card"><h1>🍬 PDV Doces</h1><p class="mut">Entre com seu usuário e PIN</p>
+  <input id="lu" placeholder="Usuário" autocapitalize="none" style="margin-bottom:8px"><input id="lp" type="password" inputmode="numeric" placeholder="PIN" style="margin-bottom:8px">
+  <div class="err">${esc(loginErr||msg)}</div><button class="p" style="width:100%" onclick="login()">Entrar</button>
+  ${isAdminViewer?`<button style="width:100%;margin-top:10px" onclick="adminIn()">Entrar como administrador</button>`:''}</div>`;
+}
+function login(){
+  const u=$('#lu').value.trim().toLowerCase(),p=$('#lp').value.trim();
+  const s=staff.find(x=>(x.user||'').toLowerCase()===u&&String(x.pin)===p);
+  if(!s){loginErr='Usuário ou PIN incorreto.';render();return}
+  loginErr='';save({id:s.id,name:s.name,role:s.role||'ambos',admin:s.role==='admin'});tab='';render();
+}
+function adminIn(){save({id:'admin',name:'Administrador',role:'ambos',admin:true});tab='';render()}
+
+/* ---------- Vender ---------- */
+function vender(){
+  if(!products.length)return`<div class="card">Nenhum produto cadastrado ainda.${me.admin?' Cadastre na aba Produtos.':' Peça ao administrador.'}</div>`;
+  const total=products.reduce((s,p)=>s+(cart[p.id]||0)*p.price,0),n=Object.values(cart).reduce((a,b)=>a+b,0),sel=products.filter(p=>cart[p.id]);
+  return`<div class="grid">${products.filter(p=>p.active!==false).map(p=>`<div class="card prod" style="margin:0"><b>${esc(p.name)}</b><span class="mut">${brl(p.price)}</span>
+  <div class="qty"><button class="sm" onclick="chg('${p.id}',-1)">−</button><span>${cart[p.id]||0}</span><button class="sm p" onclick="chg('${p.id}',1)">+</button></div></div>`).join('')}</div>
+  <div class="card sticky" style="margin-top:14px;box-shadow:0 4px 16px #0003"><b>Comanda</b><div style="max-height:28vh;overflow-y:auto;margin:6px 0 10px">${sel.length?sel.map(p=>`<div class="row" style="padding:4px 0;border-bottom:1px dashed var(--bd)"><span style="flex:3"><b>${cart[p.id]}×</b> ${esc(p.name)}</span><span class="mut" style="text-align:right">${brl(cart[p.id]*p.price)}</span><button class="sm" style="flex:none" onclick="chg('${p.id}',-1)">−</button></div>`).join(''):'<span class="mut">Vazia. Toque em + nos produtos para adicionar.</span>'}</div><div class="row"><input placeholder="Nome do cliente" value="${esc(cname)}" oninput="cname=this.value"><div style="flex:none" class="tot">${brl(total)}</div></div>
+  <button class="p" style="width:100%;margin-top:10px" ${n?'':'disabled'} onclick="send()">Enviar comanda (${n} ${n===1?'item':'itens'})</button></div>`;
+}
+function chg(id,d){cart[id]=Math.max(0,(cart[id]||0)+d);render()}
+async function send(){
+  const name=cname.trim();if(!name){alert('Digite o nome do cliente.');return}
+  const items=products.filter(p=>cart[p.id]).map(p=>({id:p.id,name:p.name,price:p.price,qty:cart[p.id]}));
+  const total=items.reduce((s,i)=>s+i.price*i.qty,0);
+  try{await db.collection('orders').add({name,items,total,status:'open',seller:me.id,sellerName:me.name,createdAt:Date.now()});cart={};cname='';msg='';alert('Comanda enviada para o caixa!');render()}
+  catch(e){msg='Erro ao enviar a comanda ('+e.code+').';render()}
+}
+
+/* ---------- Caixa ---------- */
+function caixa(){
+  const open=orders.filter(o=>o.status==='open').sort((a,b)=>a.createdAt-b.createdAt);
+  if(!open.length)return`<div class="card mut">Nenhuma comanda aguardando pagamento. ☕</div>`;
+  return`<input id="q" placeholder="Buscar cliente…" oninput="filt()" style="margin-bottom:12px"><div id="list">${open.map(orderCard).join('')}</div>`;
+}
+function filt(){const q=$('#q').value.toLowerCase();document.querySelectorAll('[data-n]').forEach(e=>e.style.display=e.dataset.n.includes(q)?'':'none')}
+function orderCard(o){
+  const t=new Date(o.createdAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const r=recv[o.id];
+  return`<div class="card" data-n="${esc((o.name||'').toLowerCase())}"><div class="row"><b style="font-size:18px">${esc(o.name)}</b><span class="mut" style="text-align:right;flex:none">${t} · ${esc(o.sellerName)}</span></div>
+  <ul class="items">${o.items.map(i=>`<li>${i.qty}× ${esc(i.name)} <span class="mut">${brl(i.price*i.qty)}</span></li>`).join('')}</ul>
+  <div class="tot">Total: ${brl(o.total)}</div>
+  <div class="pay"><button onclick="pay('${o.id}','debito')">💳 Débito</button><button onclick="pay('${o.id}','credito')">💳 Crédito</button><button onclick="cash('${o.id}')">💵 Dinheiro</button></div>
+  ${r!==undefined?`<div class="row" style="margin-top:8px"><input type="number" inputmode="decimal" placeholder="Valor recebido" value="${r}" oninput="recv['${o.id}']=this.value;tr('${o.id}',${o.total})"><b id="tr_${o.id}" style="flex:none"></b></div><button class="p" style="width:100%;margin-top:8px" onclick="pay('${o.id}','dinheiro')">Confirmar dinheiro</button>`:''}
+  <button class="sm" style="margin-top:8px" onclick="cancel('${o.id}')">Cancelar comanda</button></div>`;
+}
+function cash(id){recv[id]='';render()}
+function tr(id,t){const v=parseFloat(recv[id]);$('#tr_'+id).textContent=isNaN(v)?'':(v>=t?'Troco: '+brl(v-t):'Falta '+brl(t-v))}
+async function pay(id,m){try{await db.doc('orders/'+id).update({status:'paid',method:m,paidAt:Date.now(),cashier:me.name});delete recv[id]}catch(e){msg='Erro ao registrar pagamento ('+e.code+').';render()}}
+async function cancel(id){if(confirm('Cancelar esta comanda?'))try{await db.doc('orders/'+id).update({status:'cancelled'})}catch(e){}}
+
+/* ---------- Painel ---------- */
+function bars(rows,fmt){const mx=Math.max(1,...rows.map(r=>r[1]));return rows.length?rows.map(r=>`<div class="bar"><span class="l">${esc(r[0])}</span><span class="t"><i style="width:${r[1]/mx*100}%"></i></span><span class="v">${fmt?fmt(r[1]):r[1]}</span></div>`).join(''):'<p class="mut">Sem dados ainda.</p>'}
+function painel(){
+  const paid=orders.filter(o=>o.status==='paid'),open=orders.filter(o=>o.status==='open');
+  const rev=paid.reduce((s,o)=>s+o.total,0);
+  const prod={},prodRev={},meth={debito:0,credito:0,dinheiro:0},sel={},hr={};
+  paid.forEach(o=>{o.items.forEach(i=>{prod[i.name]=(prod[i.name]||0)+i.qty;prodRev[i.name]=(prodRev[i.name]||0)+i.qty*i.price});meth[o.method]=(meth[o.method]||0)+o.total;sel[o.sellerName]=(sel[o.sellerName]||0)+o.total;const h=new Date(o.paidAt).getHours();hr[h]=(hr[h]||0)+o.total});
+  const top=Object.entries(prod).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const sellers=Object.entries(sel).sort((a,b)=>b[1]-a[1]);
+  let acc=0;const seg=Object.keys(METHODS).map(k=>{const s=rev?meth[k]/rev*100:0;const r=`${METHODS[k][1]} ${acc}% ${acc+s}%`;acc+=s;return r}).join(',');
+  const hs=Object.keys(hr).map(Number).sort((a,b)=>a-b),hm=Math.max(1,...Object.values(hr));
+  return`<div class="kpis"><div class="kpi">Faturamento<b>${brl(rev)}</b></div><div class="kpi">Vendas pagas<b>${paid.length}</b></div><div class="kpi">Ticket médio<b>${brl(paid.length?rev/paid.length:0)}</b></div><div class="kpi">Aguardando pagamento<b>${open.length}</b></div></div>
+  <div class="card"><h2>🏆 Produtos mais vendidos</h2>${bars(top)}</div>
+  <div class="card"><h2>💰 Formas de pagamento</h2><div class="donut"><div class="ring" style="background:${rev?`conic-gradient(${seg})`:'var(--pri2)'}"></div><div>${Object.keys(METHODS).map(k=>`<div style="margin:4px 0"><span class="dot" style="background:${METHODS[k][1]}"></span>${METHODS[k][0]}: <b>${brl(meth[k])}</b> ${rev?`(${Math.round(meth[k]/rev*100)}%)`:''}</div>`).join('')}</div></div></div>
+  <div class="card"><h2>⏰ Faturamento por horário</h2>${hs.length?`<div class="hours">${hs.map(h=>`<div title="${brl(hr[h])}"><i style="height:${hr[h]/hm*85}%"></i>${h}h</div>`).join('')}</div>`:'<p class="mut">Sem dados ainda.</p>'}</div>
+  <div class="card"><h2>🧑‍🍳 Vendas por funcionário</h2>${bars(sellers,brl)}</div>
+  <div class="card"><h2>📋 Vendas por produto</h2>${plist(prod,prodRev)}</div>`;
+}
+
+function plist(q,r){
+  const names=[...new Set([...products.map(p=>p.name),...Object.keys(q)])];
+  const rows=names.map(n=>[n,q[n]||0,r[n]||0]).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+  if(!rows.length)return'<p class="mut">Nenhum produto cadastrado.</p>';
+  return`<table style="width:100%;border-collapse:collapse"><tr class="mut"><th align="left">Produto</th><th align="right">Qtd. vendida</th><th align="right">Total</th></tr>${rows.map(x=>`<tr style="border-top:1px solid var(--bd)"><td style="padding:8px 0">${esc(x[0])}</td><td align="right"><b>${x[1]}</b></td><td align="right">${brl(x[2])}</td></tr>`).join('')}</table>`;
+}
+
+/* ---------- Produtos ---------- */
+function produtos(){
+  return`<div class="card"><h2>Novo produto</h2><div class="row"><input id="pn" placeholder="Nome (ex.: Brigadeiro)"><input id="pp" type="number" inputmode="decimal" step="0.01" placeholder="Preço"></div><button class="p" style="width:100%;margin-top:8px" onclick="addProd()">Adicionar</button></div>
+  ${products.map(p=>`<div class="card row"><div><b>${esc(p.name)}</b> <span class="mut">${brl(p.price)}</span> ${p.active===false?'<span class="tag">oculto</span>':''}</div><div style="flex:none;display:flex;gap:6px"><button class="sm" onclick="togProd('${p.id}',${p.active===false})">${p.active===false?'Mostrar':'Ocultar'}</button><button class="sm" onclick="delProd('${p.id}')">Excluir</button></div></div>`).join('')}`;
+}
+async function addProd(){const n=$('#pn').value.trim(),p=parseFloat(($('#pp').value||'').replace(',','.'));if(!n||isNaN(p))return alert('Informe nome e preço.');try{await db.collection('products').add({name:n,price:p,active:true})}catch(e){msg='Erro ao salvar ('+e.code+').';render()}}
+async function togProd(id,a){try{await db.doc('products/'+id).update({active:a})}catch(e){}}
+async function delProd(id){if(confirm('Excluir produto?'))try{await db.doc('products/'+id).delete()}catch(e){}}
+
+/* ---------- Equipe ---------- */
+function equipe(){
+  return`<div class="card"><h2>Novo funcionário</h2><input id="sn" placeholder="Nome" style="margin-bottom:8px"><div class="row"><input id="su" placeholder="Usuário" autocapitalize="none"><input id="sp" placeholder="PIN (ex.: 1234)" inputmode="numeric"></div>
+  <select id="sr" style="margin-top:8px"><option value="vendedor">Vendedor (lança comandas)</option><option value="caixa">Caixa (recebe pagamentos)</option><option value="ambos">Vendedor e caixa</option></select>
+  <button class="p" style="width:100%;margin-top:8px" onclick="addStaff()">Adicionar</button></div>
+  ${staff.map(s=>`<div class="card row"><div><b>${esc(s.name)}</b> <span class="mut">@${esc(s.user)} · PIN ${esc(s.pin)}</span> <span class="tag">${esc(s.role)}</span></div><button class="sm" style="flex:none" onclick="delStaff('${s.id}')">Remover</button></div>`).join('')}
+  <p class="mut">Cada funcionário precisa abrir o mesmo link do app no celular.</p>`;
+}
+async function addStaff(){const name=$('#sn').value.trim(),user=$('#su').value.trim().toLowerCase(),pin=$('#sp').value.trim(),role=$('#sr').value;
+  if(!name||!user||!pin)return alert('Preencha nome, usuário e PIN.');if(staff.some(s=>(s.user||'').toLowerCase()===user))return alert('Esse usuário já existe.');
+  try{await db.collection('staff').add({name,user,pin,role})}catch(e){msg='Erro ao salvar ('+e.code+').';render()}}
+async function delStaff(id){if(confirm('Remover funcionário?'))try{await db.doc('staff/'+id).delete()}catch(e){}}
+
+/* ---------- Supabase ---------- */
+const SUPABASE_URL='https://SEU-PROJETO.supabase.co';   // <- cole aqui a Project URL
+const SUPABASE_ANON_KEY='SUA-CHAVE-ANON-PUBLICA';        // <- cole aqui a anon public key
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const c2s=k=>k==='user'?'username':k.replace(/[A-Z]/g,m=>'_'+m.toLowerCase());
+const s2c=k=>k==='username'?'user':k.replace(/_([a-z])/g,(_,x)=>x.toUpperCase());
+const toDb=o=>Object.fromEntries(Object.entries(o).map(([k,v])=>[c2s(k),v]));
+const fromDb=o=>Object.fromEntries(Object.entries(o).map(([k,v])=>[s2c(k),v]));
+function makeDb(){
+  const er=e=>({code:e.code||'erro',message:e.message});
+  const ok=r=>{if(r.error)throw er(r.error);return r};
+  return{
+    collection:t=>({
+      add:async d=>ok(await sb.from(t).insert(toDb(d))),
+      onSnapshot:(next,onErr)=>{
+        const load=async()=>{const r=await sb.from(t).select('*');if(r.error){onErr&&onErr(er(r.error));return}
+          next({docs:r.data.map(row=>{const{id,...rest}=fromDb(row);return{id,data:()=>rest}})})};
+        load();
+        const ch=sb.channel('rt_'+t+'_'+Math.random()).on('postgres_changes',{event:'*',schema:'public',table:t},load).subscribe();
+        return()=>sb.removeChannel(ch);
+      }
+    }),
+    doc:p=>{const[t,id]=p.split('/');return{
+      update:async d=>ok(await sb.from(t).update(toDb(d)).eq('id',id)),
+      delete:async()=>ok(await sb.from(t).delete().eq('id',id))}}
+  };
+}
+
+boot();
+</script>
+</body>
+</html>
