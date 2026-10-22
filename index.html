@@ -67,7 +67,8 @@ const METHODS={debito:['Débito','var(--c3)'],credito:['Crédito','var(--c2)'],d
 let db=null,isAdminViewer=false,me=null,tab='',products=[],staff=[],orders=[],cart={},cname='',msg='',loginErr='',lemail='',unsubs=[],recv={};
 
 async function boot(){
-  db=makeDb();render();
+  db=makeDb();if(!CONFIG_OK)loginErr=CFGMSG;render();
+  if(!CONFIG_OK)return;
   const {data}=await sb.auth.getSession();
   if(data.session)await enter(data.session.user.email);
 }
@@ -109,15 +110,17 @@ function loginView(){
 async function login(){
   const e=$('#lu').value.trim().toLowerCase(),p=$('#lp').value;lemail=e;
   if(!e||!p){loginErr='Digite e-mail e senha.';render();return}
+  if(!CONFIG_OK){loginErr=CFGMSG;render();return}
   const r=await sb.auth.signInWithPassword({email:e,password:p});
-  if(r.error){loginErr=/confirm/i.test(r.error.message)?'Confirme seu e-mail pelo link que enviamos.':'E-mail ou senha incorretos.';render();return}
+  if(r.error){loginErr=netErr(r.error)?NETMSG:/confirm/i.test(r.error.message)?'Confirme seu e-mail pelo link que enviamos.':'E-mail ou senha incorretos.';render();return}
   await enter(e);
 }
 async function firstAccess(){
   const e=$('#lu').value.trim().toLowerCase(),p=$('#lp').value;lemail=e;
   if(!e||p.length<6){loginErr='Digite seu e-mail e crie uma senha de pelo menos 6 caracteres.';render();return}
+  if(!CONFIG_OK){loginErr=CFGMSG;render();return}
   const r=await sb.auth.signUp({email:e,password:p});
-  loginErr=r.error?r.error.message:'Enviamos um link de confirmação para o seu e-mail. Confirme e depois toque em Entrar.';render();
+  loginErr=r.error?(netErr(r.error)?NETMSG:/already registered/i.test(r.error.message)?'Este e-mail já tem senha criada. Toque em Entrar.':r.error.message):'Enviamos um link de confirmação para o seu e-mail. Confirme e depois toque em Entrar.';render();
 }
 
 /* ---------- Vender ---------- */
@@ -214,6 +217,10 @@ async function delStaff(id){if(id===me.id)return alert('Você não pode remover 
 const SUPABASE_URL='https://SEU-PROJETO.supabase.co';   // <- cole aqui a Project URL
 const SUPABASE_ANON_KEY='SUA-CHAVE-ANON-PUBLICA';        // <- cole aqui a anon public key
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const CONFIG_OK=!/SEU-PROJETO|SUA-CHAVE/.test(SUPABASE_URL+SUPABASE_ANON_KEY);
+const CFGMSG='Falta colar a URL e a chave do Supabase no index.html (linhas SUPABASE_URL e SUPABASE_ANON_KEY).';
+const NETMSG='Não consegui falar com o Supabase. Confira a URL e a chave no index.html e se o projeto não está pausado.';
+const netErr=e=>/load failed|failed to fetch|network|fetch/i.test((e.message||'')+(e.name||''));
 const c2s=k=>k==='user'?'username':k.replace(/[A-Z]/g,m=>'_'+m.toLowerCase());
 const s2c=k=>k==='username'?'user':k.replace(/_([a-z])/g,(_,x)=>x.toUpperCase());
 const toDb=o=>Object.fromEntries(Object.entries(o).map(([k,v])=>[c2s(k),v]));
