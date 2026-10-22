@@ -214,8 +214,8 @@ async function setRole(id,role){if(id===me.id&&role!=='admin'&&!confirm('Você v
 async function delStaff(id){if(id===me.id)return alert('Você não pode remover a si mesmo.');if(confirm('Remover funcionário?'))try{await db.doc('staff/'+id).delete()}catch(e){}}
 
 /* ---------- Supabase ---------- */
-const SUPABASE_URL='https://SEU-PROJETO.supabase.co';   // <- cole aqui a Project URL
-const SUPABASE_ANON_KEY='SUA-CHAVE-ANON-PUBLICA';        // <- cole aqui a anon public key
+const SUPABASE_URL='https://ptaeyedzvbhqayvcstjr.supabase.co';   // <- cole aqui a Project URL
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB0YWV5ZWR6dmJocWF5dmNzdGpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3MDMzMDAsImV4cCI6MjEwODI3OTMwMH0.DZ4vxJ9NYpXw3LzKDGyoav6Dqed8jG1KNDMq0QboQCQ';        // <- cole aqui a anon public key
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const CONFIG_OK=!/SEU-PROJETO|SUA-CHAVE/.test(SUPABASE_URL+SUPABASE_ANON_KEY);
 const CFGMSG='Falta colar a URL e a chave do Supabase no index.html (linhas SUPABASE_URL e SUPABASE_ANON_KEY).';
