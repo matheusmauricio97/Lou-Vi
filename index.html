@@ -64,20 +64,28 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const brl=n=>(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const METHODS={debito:['Débito','var(--c3)'],credito:['Crédito','var(--c2)'],dinheiro:['Dinheiro','var(--c4)']};
-let db=null,isAdminViewer=false,me=null,tab='',products=[],staff=[],orders=[],cart={},cname='',msg='',loginErr='',recv={};
-try{me=JSON.parse(localStorage.getItem('pdv_me')||'null')}catch(e){}
+let db=null,isAdminViewer=false,me=null,tab='',products=[],staff=[],orders=[],cart={},cname='',msg='',loginErr='',lemail='',unsubs=[],recv={};
 
 async function boot(){
-  render();
-  db=makeDb();
-  if(!db){msg='Não foi possível conectar ao banco de dados. Confira a URL e a chave do Supabase no index.html.';render();return}
-  const sub=(name,set,after)=>db.collection(name).onSnapshot(s=>{set(s.docs.map(d=>({id:d.id,...d.data()})));after()},e=>{msg='Sem acesso aos dados ('+e.code+'). Verifique as políticas (RLS) e o SQL no Supabase.';render()});
+  db=makeDb();render();
+  const {data}=await sb.auth.getSession();
+  if(data.session)await enter(data.session.user.email);
+}
+async function enter(email){
+  const r=await sb.from('staff').select('*').eq('username',(email||'').toLowerCase()).limit(1);
+  const row=r.data&&r.data[0];
+  if(!row){await sb.auth.signOut();loginErr='Este e-mail não foi cadastrado pelo administrador.';render();return}
+  save({id:row.id,name:row.name,role:row.role||'ambos',admin:row.role==='admin'});tab='';loginErr='';msg='';
+  startSubs();render();
+}
+function startSubs(){
+  unsubs.forEach(f=>f());unsubs=[];
+  const sub=(name,set,after)=>unsubs.push(db.collection(name).onSnapshot(s=>{set(s.docs.map(d=>({id:d.id,...d.data()})));after()},e=>{msg='Sem acesso aos dados ('+e.code+').';render()}));
   sub('products',a=>products=a.sort((x,y)=>(x.name||'').localeCompare(y.name||'')),()=>render());
   sub('staff',a=>staff=a,()=>render());
   sub('orders',a=>orders=a,()=>{if(tab!=='vender')render()});
-  render();
 }
-function save(m){me=m;try{m?localStorage.setItem('pdv_me',JSON.stringify(m)):localStorage.removeItem('pdv_me')}catch(e){}}
+function save(m){me=m}
 function tabsFor(){
   if(me.admin)return[['painel','Painel'],['vender','Vender'],['caixa','Caixa'],['produtos','Produtos'],['equipe','Equipe']];
   const t=[];if(me.role!=='caixa')t.push(['vender','Vender']);if(me.role!=='vendedor')t.push(['caixa','Caixa']);return t;
@@ -91,20 +99,26 @@ function render(){
   <main>${msg?`<div class="card err">${esc(msg)}</div>`:''}${{painel,vender,caixa,produtos,equipe}[tab]()}</main>`;
 }
 function go(t){tab=t;render()}
-function logout(){save(null);tab='';render()}
+async function logout(){await sb.auth.signOut();unsubs.forEach(f=>f());unsubs=[];save(null);products=[];staff=[];orders=[];tab='';render()}
 function loginView(){
-  return`<div class="login card"><img class="lg big" src="${LOGO}" alt=""><h1>PDV Doces</h1><p class="mut">Entre com seu e-mail e PIN</p>
-  <input id="lu" type="email" placeholder="E-mail" autocapitalize="none" autocomplete="username" style="margin-bottom:8px"><input id="lp" type="password" inputmode="numeric" placeholder="PIN" style="margin-bottom:8px">
+  return`<div class="login card"><img class="lg big" src="${LOGO}" alt=""><h1>PDV Doces</h1><p class="mut">Entre com seu e-mail e senha</p>
+  <input id="lu" type="email" placeholder="E-mail" autocapitalize="none" autocomplete="username" value="${esc(lemail)}" style="margin-bottom:8px"><input id="lp" type="password" placeholder="Senha" autocomplete="current-password" style="margin-bottom:8px">
   <div class="err">${esc(loginErr||msg)}</div><button class="p" style="width:100%" onclick="login()">Entrar</button>
-  ${isAdminViewer?`<button style="width:100%;margin-top:10px" onclick="adminIn()">Entrar como administrador</button>`:''}</div>`;
+  <button style="width:100%;margin-top:8px" onclick="firstAccess()">Primeiro acesso: criar senha</button></div>`;
 }
-function login(){
-  const u=$('#lu').value.trim().toLowerCase(),p=$('#lp').value.trim();
-  const s=staff.find(x=>(x.user||'').toLowerCase()===u&&String(x.pin)===p);
-  if(!s){loginErr='E-mail ou PIN incorreto.';render();return}
-  loginErr='';save({id:s.id,name:s.name,role:s.role||'ambos',admin:s.role==='admin'});tab='';render();
+async function login(){
+  const e=$('#lu').value.trim().toLowerCase(),p=$('#lp').value;lemail=e;
+  if(!e||!p){loginErr='Digite e-mail e senha.';render();return}
+  const r=await sb.auth.signInWithPassword({email:e,password:p});
+  if(r.error){loginErr=/confirm/i.test(r.error.message)?'Confirme seu e-mail pelo link que enviamos.':'E-mail ou senha incorretos.';render();return}
+  await enter(e);
 }
-function adminIn(){save({id:'admin',name:'Administrador',role:'ambos',admin:true});tab='';render()}
+async function firstAccess(){
+  const e=$('#lu').value.trim().toLowerCase(),p=$('#lp').value;lemail=e;
+  if(!e||p.length<6){loginErr='Digite seu e-mail e crie uma senha de pelo menos 6 caracteres.';render();return}
+  const r=await sb.auth.signUp({email:e,password:p});
+  loginErr=r.error?r.error.message:'Enviamos um link de confirmação para o seu e-mail. Confirme e depois toque em Entrar.';render();
+}
 
 /* ---------- Vender ---------- */
 function vender(){
@@ -182,17 +196,19 @@ async function togProd(id,a){try{await db.doc('products/'+id).update({active:a})
 async function delProd(id){if(confirm('Excluir produto?'))try{await db.doc('products/'+id).delete()}catch(e){}}
 
 /* ---------- Equipe ---------- */
+const ROLES={vendedor:'Vendedor',caixa:'Caixa',ambos:'Vendedor e caixa',admin:'Administrador'};
 function equipe(){
-  return`<div class="card"><h2>Novo funcionário</h2><input id="sn" placeholder="Nome" style="margin-bottom:8px"><div class="row"><input id="su" type="email" placeholder="E-mail" autocapitalize="none"><input id="sp" placeholder="PIN (ex.: 1234)" inputmode="numeric"></div>
-  <select id="sr" style="margin-top:8px"><option value="vendedor">Vendedor (lança comandas)</option><option value="caixa">Caixa (recebe pagamentos)</option><option value="ambos">Vendedor e caixa</option></select>
-  <button class="p" style="width:100%;margin-top:8px" onclick="addStaff()">Adicionar</button></div>
-  ${staff.map(s=>`<div class="card row"><div><b>${esc(s.name)}</b> <span class="mut">${esc(s.user)} · PIN ${esc(s.pin)}</span> <span class="tag">${esc(s.role)}</span></div><button class="sm" style="flex:none" onclick="delStaff('${s.id}')">Remover</button></div>`).join('')}
-  <p class="mut">Cada funcionário precisa abrir o mesmo link do app no celular.</p>`;
+  const opt=v=>Object.entries(ROLES).map(([k,l])=>`<option value="${k}" ${k===v?'selected':''}>${l}</option>`).join('');
+  return`<div class="card"><h2>Novo funcionário</h2><input id="sn" placeholder="Nome" style="margin-bottom:8px"><input id="su" type="email" placeholder="E-mail" autocapitalize="none" style="margin-bottom:8px"><select id="sr">${opt('vendedor')}</select>
+  <button class="p" style="width:100%;margin-top:8px" onclick="addStaff()">Cadastrar</button>
+  <p class="mut">Depois de cadastrar, o funcionário abre o app, toca em “Primeiro acesso”, cria a senha e confirma o e-mail.</p></div>
+  ${staff.map(s=>`<div class="card"><b>${esc(s.name)}</b><div class="mut">${esc(s.user)}</div><div class="row" style="margin-top:8px"><select onchange="setRole('${s.id}',this.value)">${opt(s.role)}</select><button class="sm" style="flex:none" onclick="delStaff('${s.id}')">Remover</button></div></div>`).join('')}`;
 }
-async function addStaff(){const name=$('#sn').value.trim(),user=$('#su').value.trim().toLowerCase(),pin=$('#sp').value.trim(),role=$('#sr').value;
-  if(!name||!user||!pin)return alert('Preencha nome, e-mail e PIN.');if(staff.some(s=>(s.user||'').toLowerCase()===user))return alert('Esse e-mail já está cadastrado.');
-  try{await db.collection('staff').add({name,user,pin,role})}catch(e){msg='Erro ao salvar ('+e.code+').';render()}}
-async function delStaff(id){if(confirm('Remover funcionário?'))try{await db.doc('staff/'+id).delete()}catch(e){}}
+async function addStaff(){const name=$('#sn').value.trim(),user=$('#su').value.trim().toLowerCase(),role=$('#sr').value;
+  if(!name||!user)return alert('Preencha nome e e-mail.');if(staff.some(s=>(s.user||'').toLowerCase()===user))return alert('Esse e-mail já está cadastrado.');
+  try{await db.collection('staff').add({name,user,role})}catch(e){msg='Erro ao salvar ('+e.code+').';render()}}
+async function setRole(id,role){if(id===me.id&&role!=='admin'&&!confirm('Você vai perder o acesso de administrador. Continuar?')){render();return}try{await db.doc('staff/'+id).update({role})}catch(e){}}
+async function delStaff(id){if(id===me.id)return alert('Você não pode remover a si mesmo.');if(confirm('Remover funcionário?'))try{await db.doc('staff/'+id).delete()}catch(e){}}
 
 /* ---------- Supabase ---------- */
 const SUPABASE_URL='https://SEU-PROJETO.supabase.co';   // <- cole aqui a Project URL
